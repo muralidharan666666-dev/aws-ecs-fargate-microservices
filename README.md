@@ -50,7 +50,10 @@ Two independent microservices where:
 ### Amazon VPC
 I created a custom VPC (10.0.0.0/16) with 4 subnets across
 2 availability zones -- 2 public subnets for the Load Balancer
-and 2 private subnets for the containers.
+and 2 private subnets for the containers. The Fargate tasks in
+the private subnets have no public IP, so they reach ECR (to pull
+images), DynamoDB and CloudWatch through a NAT Gateway in one of
+the public subnets.
 
 The thing that clicked for me here is WHY containers go in
 private subnets. The Load Balancer is the only thing that should
@@ -237,9 +240,11 @@ Response:
 
 ### Challenge 1 -- Cart Service Health Checks Kept Failing
 
-After deploying the cart service, the containers kept showing
-as Draining instead of Healthy in the target group. I kept
-waiting but it never changed.
+After deploying the cart service, the cart targets kept failing
+health checks and showing as Unhealthy in the target group. ECS
+kept stopping and replacing the tasks, so they kept cycling
+through Draining and never became Healthy. I kept waiting but
+it never changed.
 
 I went through it step by step:
 
@@ -300,7 +305,8 @@ what microservices actually means. I could not have
 explained it this way before building it.
 
 The other thing I will not forget is the debugging.
-When my cart containers kept showing as Draining I
+When my cart containers kept failing health checks and
+cycling through Draining I
 had no way to log into the server and check -- there
 is no server with Fargate. I had to use CloudWatch
 logs, check health check settings, and go through
@@ -311,6 +317,20 @@ port 5001 to the security group when I set it up
 for the product service. One missing rule was
 blocking every single health check from reaching
 the container.
+
+## Known Gaps
+
+### Flask Development Server
+Both services run Flask's built-in development server with
+debug=True (the last line of each app.py). That is fine for
+learning but not safe in production, because debug mode exposes
+an interactive debugger. In production I would set debug=False
+and run the app with a proper server like gunicorn.
+
+### Built Manually in the Console
+I built everything by clicking through the AWS console, not as
+code. Recreating it in Terraform is already listed under Future
+Improvements below.
 
 ## Future Improvements
 
@@ -356,7 +376,7 @@ To stop AWS charges, delete resources in this order:
 
 **Muralidharan M N**
 
-AWS Certified Cloud Practitioner | AWS re/Start Graduate
+AWS Certified Cloud Practitioner | HashiCorp Certified: Terraform Associate | AWS re/Start Graduate
 
 LinkedIn: https://www.linkedin.com/in/muralidharan-m-n-78a2522b8
 
