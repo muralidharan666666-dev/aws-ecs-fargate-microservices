@@ -1,14 +1,35 @@
 # Containerized Microservices on AWS ECS Fargate
 
+A product catalog and a shopping cart, built as two separate Python services in Docker containers and run on ECS Fargate in private subnets across 2 AZs. One Application Load Balancer sends `/products` and `/cart` to the right service. Each service has its own DynamoDB table and scales on its own, and CloudWatch collects the logs and alarms on high CPU and memory.
+
+| **2** | **1 → 4** | **8 / 8** | **0** |
+|:---:|:---:|:---:|:---:|
+| independent services, each with its own table | containers per service, scaled on CPU | tests passed | public IPs on the containers |
+
+> **Status:** deleted after testing, because the NAT gateway and the load balancer cost money even when idle. Everything below comes from real runs, and the screenshots are in [`screenshots/`](screenshots/).
+
+<table>
+<tr>
+<td width="50%"><img src="screenshots/01-ecs-services-running.png" alt="Both ECS services active"><br><sub>Both services running on Fargate</sub></td>
+<td width="50%"><img src="screenshots/06-cart-target-group-healthy.png" alt="Cart target group healthy"><br><sub>Cart healthy after the security group fix</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="screenshots/02-product-api-response.png" alt="Product API response through the load balancer"><br><sub>/products through the load balancer</sub></td>
+<td width="50%"><img src="screenshots/03-cart-api-response.png" alt="Cart API response through the load balancer"><br><sub>/cart through the load balancer</sub></td>
+</tr>
+</table>
+
+**Contents:** [Architecture](#architecture) · [What I built](#what-i-built) · [Test results](#real-test-results) · [Screenshots](#screenshots) · [Problems I ran into](#problems-i-ran-into) · [What I learned](#what-i-learned) · [Known gaps](#known-gaps) · [Cleanup](#cleanup)
+
+---
+
+## Why I Built This
+
 I built this project to understand how large applications like Amazon
 and Flipkart run their backend services independently without one
 affecting the other. Before this project I knew Docker existed but
 I had never actually containerized a real application and deployed
 it on AWS. Building this changed that completely.
-
----
-
-## Why I Built This
 
 Every cloud job description I read mentioned Docker, ECS, and
 microservices. I could explain what they were theoretically but
@@ -236,9 +257,9 @@ Response:
 
 ---
 
-## Challenges and How I Fixed Them
+## Problems I Ran Into
 
-### Challenge 1 -- Cart Service Health Checks Kept Failing
+### Problem 1 -- Cart Service Health Checks Kept Failing
 
 After deploying the cart service, the cart targets kept failing
 health checks and showing as Unhealthy in the target group. ECS
@@ -271,7 +292,7 @@ project. The lesson I took from it is that when health checks
 fail in ECS, check the security group inbound rules before
 anything else.
 
-### Challenge 2 -- Could Not Find ECR Repository in Console
+### Problem 2 -- Could Not Find ECR Repository in Console
 
 After creating the ECR repository I searched for it in the
 console and could not find it anywhere. I spent time confused
